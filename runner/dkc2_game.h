@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -37,6 +38,29 @@ typedef struct Dkc2TerrainPrefillStats {
 
 const RtlGameInfo *Dkc2GameInfo(void);
 void Dkc2BeginDrawing(uint8_t *pixels, size_t pitch);
+/* Starts the KONG letter tracker (dkc2_kong_tracker.h) with its sidecar
+ * file. Hosts call it once the battery save is in g_sram; tracking runs
+ * after every game frame and the map badge is drawn into each rendered
+ * frame unless DKC2_KONG_BADGES=0 or Dkc2KongSetBadgesVisible(false).
+ * Returns false when the path is unusable or the sidecar existed but was
+ * unreadable (it is then left untouched until the next record). */
+bool Dkc2KongTrackingEnable(const char *path);
+/* Shows or hides the map badges (the desktop Settings checkbox); recording
+ * continues either way. */
+void Dkc2KongSetBadgesVisible(bool visible);
+/* Accessibility setting: holds Glimmer's light still on the mid-turn frame
+ * that otherwise turns the screen white (dkc2_glimmer_flash.h). Off unless
+ * a host enables it or DKC2_REDUCE_GLIMMER_FLASH=1 before the first frame. */
+void Dkc2SetReduceGlimmerFlash(bool enabled);
+/* Assist Tools / Cheats option (dkc2_animal_crate_cheat.h): while paused in
+ * a level, Left/Right selects an animal buddy crate and B spawns it at the
+ * active Kong. Off unless a host enables it or DKC2_PAUSE_CRATE_SPAWN=1
+ * before the first frame. */
+void Dkc2SetPauseCrateSpawnEnabled(bool enabled);
+bool Dkc2PauseCrateSpawnEnabled(void);
+/* The selected buddy's name while the option is on and the game is paused
+ * in a level, else NULL; hosts draw it at the bottom of the screen. */
+const char *Dkc2PauseCrateHudLabel(void);
 void Dkc2DrawPpuFrame(void);
 uint32_t Dkc2ResumePc(void);
 int Dkc2LastLleResult(void);
