@@ -216,15 +216,24 @@ static void TestFiles(void) {
   CHECK(Dkc2KongTrackerLoadFile(&loaded, path) == kDkc2KongLoadInvalid);
   remove(path);
 
-  /* A missing file in a usable directory can be created; one under a
-   * missing directory cannot, and the probe leaves nothing behind. */
+  /* A missing file in a usable directory can be created, and the probe
+   * leaves no sidecar behind (dkc2_sidecar_file.h; test_dkc2_sidecar_file
+   * covers names that are already taken). */
   CHECK(Dkc2KongTrackerCanCreate(path));
   stream = fopen(path, "rb");
   CHECK(stream == NULL);
   if (stream) fclose(stream);
-  const char *orphan = "test_dkc2_kong_missing_dir/kong.dat";
-  CHECK(Dkc2KongTrackerLoadFile(&loaded, orphan) == kDkc2KongLoadMissing);
-  CHECK(!Dkc2KongTrackerCanCreate(orphan));
+
+  /* A parent that is a regular file, made here (removed first, then
+   * created exclusively so the setup never follows a planted symlink), can
+   * never hold the file, whatever an earlier run left behind. */
+  const char *not_a_dir = "test_dkc2_kong_not_a_dir";
+  remove(not_a_dir);
+  stream = fopen(not_a_dir, "wbx");
+  CHECK(stream != NULL);
+  if (stream) fclose(stream);
+  CHECK(!Dkc2KongTrackerCanCreate("test_dkc2_kong_not_a_dir/kong.dat"));
+  remove(not_a_dir);
   CHECK(!Dkc2KongTrackerCanCreate(""));
 }
 

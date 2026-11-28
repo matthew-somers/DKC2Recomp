@@ -215,6 +215,18 @@ if(DKC2_BUILD_SNESRECOMP)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply_dkc2_palette_overflow_overrides.py"
         "${_palette_unit}")
+    execute_process(COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply_dkc2_banana_coin_overrides.py"
+        --generated-dir "${DKC2_SNESRECOMP_GEN_DIR}"
+        RESULT_VARIABLE _coin_result OUTPUT_VARIABLE _coin_units
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT _coin_result EQUAL 0)
+        message(FATAL_ERROR "Banana Coin save integration failed")
+    endif()
+    string(REPLACE "\n" ";" _coin_units "${_coin_units}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply_dkc2_banana_coin_overrides.py"
+        ${_coin_units})
     list(APPEND SNESRECOMP_RUNNER_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/runner/dkc2_music.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/runner/dkc2_msu1.c"
@@ -229,10 +241,12 @@ if(DKC2_BUILD_SNESRECOMP)
         ${DKC2_SNESRECOMP_GEN_SOURCES}
         runner/dkc2_game.c
         runner/dkc2_animal_crate_cheat.c
+        runner/dkc2_banana_coins.c
         runner/dkc2_palette_overflow.c
         runner/dkc2_intro_skip.c
         runner/dkc2_glimmer_flash.c
         runner/dkc2_kong_tracker.c
+        runner/dkc2_sidecar_file.c
         runner/dkc2_coop.c
         runner/dkc2_video.c
         runner/dkc2_hdma.c
@@ -280,10 +294,12 @@ if(DKC2_BUILD_SNESRECOMP)
             ${DKC2_SNESRECOMP_GEN_SOURCES}
             runner/dkc2_game.c
             runner/dkc2_animal_crate_cheat.c
+            runner/dkc2_banana_coins.c
             runner/dkc2_palette_overflow.c
             runner/dkc2_intro_skip.c
             runner/dkc2_glimmer_flash.c
             runner/dkc2_kong_tracker.c
+            runner/dkc2_sidecar_file.c
             runner/dkc2_coop.c
             runner/dkc2_video.c
             runner/dkc2_hdma.c
@@ -355,10 +371,12 @@ if(DKC2_BUILD_SNESRECOMP)
         ${DKC2_SNESRECOMP_GEN_SOURCES}
         runner/dkc2_game.c
         runner/dkc2_animal_crate_cheat.c
+        runner/dkc2_banana_coins.c
         runner/dkc2_palette_overflow.c
         runner/dkc2_intro_skip.c
         runner/dkc2_glimmer_flash.c
         runner/dkc2_kong_tracker.c
+        runner/dkc2_sidecar_file.c
         runner/dkc2_coop.c
         runner/dkc2_video.c
         runner/dkc2_hdma.c
@@ -769,6 +787,11 @@ if(BUILD_TESTING)
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_apply_dkc2_palette_overflow_overrides.py)
         set_tests_properties(dkc2_palette_overflow_overrides PROPERTIES
             LABELS "unit;tooling;widescreen;portable")
+        add_test(NAME dkc2_banana_coin_overrides
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_apply_dkc2_banana_coin_overrides.py)
+        set_tests_properties(dkc2_banana_coin_overrides PROPERTIES
+            LABELS "unit;tooling;gameplay;portable")
         add_test(NAME dkc2_coop_emitter_contract
             COMMAND ${Python3_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_dkc2_coop_emitter_contract.py)
@@ -1013,7 +1036,9 @@ if(BUILD_TESTING)
         ${SNESRECOMP_RUNNER_INCLUDE_DIRS})
     dkc2_enable_project_warnings(test_desktop_menu)
     add_test(NAME desktop_menu COMMAND test_desktop_menu)
-    if(WIN32)
+    # SDL2 is resolved only with DKC2_BUILD_SNESRECOMP, so a default
+    # configure builds the portable tests without these SDL-linked ones.
+    if(WIN32 AND TARGET SDL2::SDL2)
         add_executable(test_windows_menu tests/test_windows_menu.c
             runner/windows_menu.c runner/desktop_menu.c)
         target_include_directories(test_windows_menu PRIVATE runner)
@@ -1178,12 +1203,23 @@ if(BUILD_TESTING)
 
     add_executable(test_dkc2_kong_tracker
         tests/test_dkc2_kong_tracker.c
-        runner/dkc2_kong_tracker.c)
+        runner/dkc2_kong_tracker.c
+        runner/dkc2_sidecar_file.c)
     target_include_directories(test_dkc2_kong_tracker PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/runner)
     dkc2_enable_project_warnings(test_dkc2_kong_tracker)
     add_test(NAME dkc2_kong_tracker COMMAND test_dkc2_kong_tracker)
     set_tests_properties(dkc2_kong_tracker PROPERTIES
+        LABELS "unit;native;saves;portable")
+
+    add_executable(test_dkc2_sidecar_file
+        tests/test_dkc2_sidecar_file.c
+        runner/dkc2_sidecar_file.c)
+    target_include_directories(test_dkc2_sidecar_file PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/runner)
+    dkc2_enable_project_warnings(test_dkc2_sidecar_file)
+    add_test(NAME dkc2_sidecar_file COMMAND test_dkc2_sidecar_file)
+    set_tests_properties(dkc2_sidecar_file PROPERTIES
         LABELS "unit;native;saves;portable")
 
     add_executable(test_dkc2_animal_crate_cheat
@@ -1205,6 +1241,17 @@ if(BUILD_TESTING)
     add_test(NAME dkc2_palette_overflow COMMAND test_dkc2_palette_overflow)
     set_tests_properties(dkc2_palette_overflow PROPERTIES
         LABELS "unit;native;widescreen;portable")
+
+    add_executable(test_dkc2_banana_coins
+        tests/test_dkc2_banana_coins.c
+        runner/dkc2_banana_coins.c
+        runner/dkc2_sidecar_file.c)
+    target_include_directories(test_dkc2_banana_coins PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/runner)
+    dkc2_enable_project_warnings(test_dkc2_banana_coins)
+    add_test(NAME dkc2_banana_coins COMMAND test_dkc2_banana_coins)
+    set_tests_properties(dkc2_banana_coins PROPERTIES
+        LABELS "unit;native;gameplay;portable")
 
     add_executable(test_dkc2_glimmer_flash
         tests/test_dkc2_glimmer_flash.c
@@ -1251,7 +1298,11 @@ if(BUILD_TESTING)
                 -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_make_release.ps1"
                 -Script "${CMAKE_CURRENT_SOURCE_DIR}/scripts/make_release.ps1")
         set_tests_properties(make_release PROPERTIES LABELS "unit;packaging;windows")
+    endif()
 
+    # Like the Windows menu and input tests, these link SDL2, which only a
+    # DKC2_BUILD_SNESRECOMP configure resolves.
+    if(WIN32 AND TARGET SDL2::SDL2)
         add_executable(test_desktop_shaders
             tests/test_desktop_shaders.c runner/desktop_filter.c
             runner/desktop_crt.c
